@@ -1,0 +1,91 @@
+if (-not ("Win32" -as [type])) {
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+
+public class Win32 {
+    [DllImport("user32.dll")]
+    public static extern short GetAsyncKeyState(int vKey);
+
+    [DllImport("user32.dll")]
+    public static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
+
+    [DllImport("winmm.dll")]
+    public static extern uint timeBeginPeriod(uint uMilliseconds);
+
+    public const int LEFTDOWN  = 0x02;
+    public const int LEFTUP    = 0x04;
+    public const int RIGHTDOWN = 0x08;
+    public const int RIGHTUP   = 0x10;
+}
+"@
+}
+
+[Win32]::timeBeginPeriod(1)
+
+$config = @(
+@(11,13), @(9,39), @(13,11), @(18,56), @(11,18), @(7,32),
+@(13,12), @(15,61), @(11,51), @(13,53), @(12,17), @(7,16),
+@(43,59), @(11,19), @(8,52), @(14,12), @(15,60), @(11,16),
+@(23,52), @(11,18), @(9,45), @(13,14), @(12,58), @(11,16),
+@(11,44), @(14,12), @(16,67), @(13,12), @(18,51), @(13,14),
+@(11,58), @(12,13), @(18,58), @(12,61), @(12,18), @(12,45),
+@(13,56), @(12,14), @(15,38), @(15,10), @(16,70), @(12,13),
+@(13,56), @(12,17), @(17,41), @(11,17), @(15,47), @(13,56),
+@(12,12), @(19,49), @(12,50), @(12,17), @(11,66), @(14,10),
+@(17,61), @(13,13), @(15,52), @(13,16), @(10,60), @(14,7),
+@(12,43), @(12,6), @(16,58), @(11,12), @(35,33), @(13,7),
+@(14,63), @(12,13), @(35,29), @(13,11), @(16,49), @(12,15),
+@(16,42), @(13,8), @(27,54), @(12,15), @(16,41), @(13,5),
+@(12,59), @(12,18), @(34,33), @(13,11), @(12,52), @(12,19),
+@(10,46), @(14,6), @(17,53), @(12,15), @(17,51), @(14,9),
+@(20,57), @(17,9), @(36,35), @(13,12), @(18,55), @(12,15),
+@(16,59), @(12,14), @(12,60), @(13,11), @(35,36), @(13,10),
+@(17,56), @(11,10), @(19,49), @(13,9), @(15,61), @(12,8),
+@(13,51), @(13,10), @(12,52), @(12,6), @(11,45), @(11,11),
+@(13,56), @(10,11), @(34,35), @(13,10), @(18,56), @(12,10),
+@(16,62), @(13,11), @(14,63), @(14,9), @(15,49), @(12,7),
+@(13,60), @(12,14), @(18,53), @(14,4), @(10,57), @(12,15),
+@(16,54), @(14,8), @(18,60), @(12,19), @(15,53), @(13,12),
+@(13,57), @(13,13), @(34,46), @(14,6), @(18,51), @(12,13),
+@(11,53), @(13,11), @(15,60)
+)
+
+# ---------- Helpers ----------
+$rand = [Random]::new()
+$idx  = 0
+
+function SpinWaitMs($ms) {
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($sw.ElapsedMilliseconds -lt $ms) { }
+}
+
+Write-Host "Clicker ACTIVEEEEE"
+Write-Host "F12 sa iesi sclavule"
+
+while ($true) {
+
+    if ([Win32]::GetAsyncKeyState(0x7B) -lt 0) { break } # F12
+
+    $doLeft  = ([Win32]::GetAsyncKeyState(0x06) -lt 0)
+    $doRight = ([Win32]::GetAsyncKeyState(0x05) -lt 0)
+
+    if ($doLeft -or $doRight) {
+
+        $pair = $config[$idx % $config.Count]
+        $idx++
+
+        $downDelay = [Math]::Max(1, $pair[0] + $rand.Next(-2,2))
+        $upDelay   = [Math]::Max(1, $pair[1] + $rand.Next(-2,2))
+
+        if ($doLeft)  { [Win32]::mouse_event([Win32]::LEFTDOWN,  0,0,0,0) }
+        if ($doRight) { [Win32]::mouse_event([Win32]::RIGHTDOWN, 0,0,0,0) }
+
+        SpinWaitMs $downDelay
+
+        if ($doLeft)  { [Win32]::mouse_event([Win32]::LEFTUP,  0,0,0,0) }
+        if ($doRight) { [Win32]::mouse_event([Win32]::RIGHTUP, 0,0,0,0) }
+
+        SpinWaitMs $upDelay
+    }
+}
